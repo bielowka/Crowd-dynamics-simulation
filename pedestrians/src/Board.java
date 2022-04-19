@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import javax.swing.JComponent;
 import javax.swing.event.MouseInputListener;
 
+import static java.lang.Math.max;
+
 public class Board extends JComponent implements MouseInputListener, ComponentListener {
 	private static final long serialVersionUID = 1L;
 	private Point[][] points;
@@ -17,6 +19,7 @@ public class Board extends JComponent implements MouseInputListener, ComponentLi
 	private boolean isMoore = true;
 	private int length;
 	private int height;
+	private ArrayList<Point> smoke = new ArrayList<Point>();
 
 	public void swichMoore() {
 		isMoore = !isMoore;
@@ -34,6 +37,7 @@ public class Board extends JComponent implements MouseInputListener, ComponentLi
 	}
 
 	public void iteration() {
+		calculateSmoke();
 		for (int x = 1; x < points.length - 1; ++x)
 			for (int y = 1; y < points[x].length - 1; ++y)
 				points[x][y].blocked = false;
@@ -114,17 +118,52 @@ public class Board extends JComponent implements MouseInputListener, ComponentLi
 			toCheck.remove(0);
 		}
 
-		for (int x = 1; x < points.length-1; ++x) {
-			for (int y = 1; y < points[x].length-1; ++y) {
-				if (points[x][y].type == 1){
-					points[x][y].staticField = 1000;
-					for (Point p : points[x][y].neighbors){
-						if (p.type == 0) p.staticField = p.staticField + 1;
+	}
+
+	private void calculateSmoke(){
+		if (!smokeExpanding()){
+			for (int x = 1; x < points.length-1; ++x) {
+				for (int y = 1; y < points[x].length-1; ++y) {
+					if (points[x][y].smokeDensity < 10){
+						points[x][y].smokeDensity = points[x][y].smokeDensity + 1;
 					}
 				}
 			}
 		}
 	}
+
+	private boolean smokeExpanding() {
+		boolean result = false;
+		for (int x = 1; x < points.length-1; ++x) {
+			for (int y = 1; y < points[x].length-1; ++y) {
+				if (points[x][y].type == 4){
+					points[x][y].smokeDensity = 0;
+					points[x][y].type = 0;
+				}
+			}
+		}
+
+		for (int x = 1; x < points.length-1; ++x) {
+			for (int y = 1; y < points[x].length-1; ++y) {
+				points[x][y].smokeCalculated = false;
+			}
+		}
+
+		for (int x = 1; x < points.length-1; ++x) {
+			for (int y = 1; y < points[x].length-1; ++y) {
+				if (points[x][y].smokeDensity < 10 && !points[x][y].smokeCalculated){
+					for (Point p : points[x][y].neighbors) {
+						if (!p.smokeCalculated){
+							if (p.calcSmokeDensity()) result = true;
+							p.smokeCalculated = true;
+						}
+					}
+				}
+			}
+		}
+		return result;
+	}
+
 
 	protected void paintComponent(Graphics g) {
 		if (isOpaque()) {
@@ -163,12 +202,24 @@ public class Board extends JComponent implements MouseInputListener, ComponentLi
 						intensity = 1.0f;
 					}
 					g.setColor(new Color(intensity, intensity,intensity ));
+
+					float smoke = points[x][y].smokeDensity;
+					if (smoke < 10) {
+						float density = smoke / 10;
+						if (density > 1.0) {
+							density = 1.0f;
+						}
+						g.setColor(new Color(1, density, density/2));
+					}
 				}
 				else if (points[x][y].type==1){
 					g.setColor(new Color(1.0f, 0.0f, 0.0f, 0.7f));
 				}
 				else if (points[x][y].type==2){
 					g.setColor(new Color(0.0f, 1.0f, 0.0f, 0.7f));
+				}
+				else if (points[x][y].type==4){
+					g.setColor(Color.ORANGE);
 				}
 				if (points[x][y].isPedestrian){
 					g.setColor(new Color(0.0f, 0.0f, 1.0f, 0.7f));
